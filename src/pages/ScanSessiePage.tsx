@@ -7,7 +7,6 @@ import {
   ScanLine,
   Camera,
   CameraOff,
-  FlipHorizontal,
   X,
 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
@@ -164,12 +163,12 @@ export default function ScanSessiePage() {
     await loadLines();
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!exportConfig || !activeSession) return;
     const ts = new Date().toISOString().slice(0, 10);
     const klantNaam = activeSession.klant?.klantnaam ?? 'onbekend';
     const filename = `${activeSession.type}-${klantNaam}-${ts}`;
-    exportToExcel(lines, exportConfig, filename, activeSession.type, klantNaam);
+    await exportToExcel(lines, exportConfig, filename, activeSession.type, activeSession.klant);
   };
 
   const handleEndSession = () => {
@@ -249,7 +248,7 @@ export default function ScanSessiePage() {
         )}
 
         {/* Camera controls overlay */}
-        <div className="absolute bottom-2 inset-x-2 flex items-center justify-between gap-2">
+        <div className="absolute bottom-2 inset-x-2 flex flex-col gap-2">
           <button
             onClick={toggleScan}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm ${accentBgBtn} active:scale-95 transition-transform`}
@@ -262,15 +261,23 @@ export default function ScanSessiePage() {
           </button>
 
           {cameras.length > 1 && (
-            <button
-              onClick={() => {
-                const other = cameras.find((c) => c.deviceId !== selectedCamera);
-                if (other) switchCamera(other.deviceId);
-              }}
-              className="bg-white/10 text-white p-2.5 rounded-xl active:bg-white/20"
-            >
-              <FlipHorizontal size={18} />
-            </button>
+            <div className="bg-black/55 backdrop-blur border border-white/20 rounded-xl p-2 flex items-center gap-2">
+              <label htmlFor="camera-select" className="text-[11px] text-gray-300 shrink-0">
+                Camera
+              </label>
+              <select
+                id="camera-select"
+                value={selectedCamera}
+                onChange={(e) => switchCamera(e.target.value)}
+                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+              >
+                {cameras.map((cam, idx) => (
+                  <option key={cam.deviceId} value={cam.deviceId} className="text-black">
+                    {cam.label || `Camera ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>

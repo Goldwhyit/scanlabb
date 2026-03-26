@@ -62,10 +62,14 @@ export function rowToCustomer(row: Record<string, unknown>): Customer | null {
 
   const klantnummer = find('klantnummer', 'klant nummer', 'klantnr', 'nr', 'nummer', 'id');
   const klantnaam = find('klantnaam', 'klant naam', 'naam', 'name', 'bedrijf', 'bedrijfsnaam');
+  const filiaal = find('filiaal', 'branch', 'vestiging');
+  const klantrelatie = find('klantrelatie', 'klant relatie', 'relatie');
+  const debiteurnummer = find('debiteurnummer', 'debiteur', 'debiteur nummer', 'debiteurnummer');
+  const magazijn = find('magazijn', 'warehouse');
 
   if (!klantnummer && !klantnaam) return null;
 
-  return { klantnummer, klantnaam };
+  return { klantnummer, klantnaam, filiaal, klantrelatie, debiteurnummer, magazijn };
 }
 
 /**

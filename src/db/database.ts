@@ -15,6 +15,10 @@ export interface Customer {
   id?: number;
   klantnummer: string;
   klantnaam: string;
+  filiaal?: string;
+  klantrelatie?: string;
+  debiteurnummer?: string;
+  magazijn?: string;
 }
 
 export interface OrderLine {
