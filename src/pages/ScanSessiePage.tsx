@@ -22,6 +22,7 @@ export default function ScanSessiePage() {
   const [manualAantal, setManualAantal] = useState<string>('');
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
   const manualInputRef = useRef<HTMLInputElement>(null);
+  const manualAantalRef = useRef<string>('');
 
   const isVerkoop = activeSession?.type === 'verkoop';
   
@@ -73,6 +74,10 @@ export default function ScanSessiePage() {
     }
   }, [activeSession]);
 
+  useEffect(() => {
+    manualAantalRef.current = manualAantal;
+  }, [manualAantal]);
+
   const handleScan = useCallback(
     async (barcode: string) => {
       if (!activeSession) return;
@@ -89,7 +94,7 @@ export default function ScanSessiePage() {
         return;
       }
 
-      const qty = manualAantal ? parseInt(manualAantal, 10) : 1;
+      const qty = manualAantalRef.current ? parseInt(manualAantalRef.current, 10) : 1;
       const safeQty = isNaN(qty) || qty < 1 ? 1 : qty;
 
       // Check if this barcode already exists in the session
@@ -126,10 +131,11 @@ export default function ScanSessiePage() {
 
       // Reset manual antal after scan
       setManualAantal('');
+      manualAantalRef.current = '';
 
       await loadLines();
     },
-    [activeSession, manualAantal, setLastScanResult, loadLines]
+    [activeSession, setLastScanResult, loadLines]
   );
 
   const { videoRef, isActive, hasPermission, cameras, selectedCamera, toggleScan, switchCamera } =
@@ -259,28 +265,30 @@ export default function ScanSessiePage() {
               <><Play size={16} /> Start scan</>
             )}
           </button>
-
-          {cameras.length > 1 && (
-            <div className="bg-black/55 backdrop-blur border border-white/20 rounded-xl p-2 flex items-center gap-2">
-              <label htmlFor="camera-select" className="text-[11px] text-gray-300 shrink-0">
-                Camera
-              </label>
-              <select
-                id="camera-select"
-                value={selectedCamera}
-                onChange={(e) => switchCamera(e.target.value)}
-                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-              >
-                {cameras.map((cam, idx) => (
-                  <option key={cam.deviceId} value={cam.deviceId} className="text-black">
-                    {cam.label || `Camera ${idx + 1}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       </div>
+
+      {cameras.length > 1 && (
+        <div className="mx-4 mt-3 bg-white/5 border border-white/10 rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="camera-select" className="text-xs text-gray-300 shrink-0">
+              Camera kiezen
+            </label>
+            <select
+              id="camera-select"
+              value={selectedCamera}
+              onChange={(e) => switchCamera(e.target.value)}
+              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none"
+            >
+              {cameras.map((cam, idx) => (
+                <option key={cam.deviceId} value={cam.deviceId} className="text-black">
+                  {cam.label || `Camera ${idx + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Scan feedback */}
       {lastScanResult && (
@@ -321,7 +329,10 @@ export default function ScanSessiePage() {
             min={1}
             placeholder="1"
             value={manualAantal}
-            onChange={(e) => setManualAantal(e.target.value)}
+            onChange={(e) => {
+              setManualAantal(e.target.value);
+              manualAantalRef.current = e.target.value;
+            }}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold text-center focus:outline-none focus:border-white/30"
           />
         </div>

@@ -28,14 +28,37 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
     setIsActive(false);
   }, []);
 
+  const refreshCameras = useCallback(async (): Promise<MediaDeviceInfo[]> => {
+    let devices: MediaDeviceInfo[] = [];
+
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      devices = all.filter((d) => d.kind === 'videoinput');
+    }
+
+    if (devices.length === 0) {
+      const readerDevices = await getReader().listVideoInputDevices();
+      devices = readerDevices;
+    }
+
+    setCameras(devices);
+
+    if (!selectedCamera || !devices.some((d) => d.deviceId === selectedCamera)) {
+      const preferred =
+        devices.find((d) => /back|rear|environment/i.test(d.label))?.deviceId ??
+        devices[devices.length - 1]?.deviceId;
+      setSelectedCamera(preferred);
+    }
+
+    return devices;
+  }, [selectedCamera]);
+
   const startReader = useCallback(async (deviceId?: string) => {
     if (!videoRef.current) return;
     try {
       const reader = getReader();
 
-      // List available cameras
-      const devices = await reader.listVideoInputDevices();
-      setCameras(devices);
+      const devices = await refreshCameras();
 
       // Prefer back/environment camera
       const preferred =
@@ -74,7 +97,7 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
       onError?.(msg);
       setIsActive(false);
     }
-  }, [onScan, onError, debounceMs]);
+  }, [onScan, onError, debounceMs, refreshCameras]);
 
   const toggleScan = useCallback(async () => {
     if (isActive) {
@@ -91,8 +114,19 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
   }, [startReader, stopReader]);
 
   useEffect(() => {
-    return () => { readerRef.current?.reset(); };
-  }, []);
+    refreshCameras().catch(() => undefined);
+
+    const handleDeviceChange = () => {
+      refreshCameras().catch(() => undefined);
+    };
+
+    navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange);
+
+    return () => {
+      readerRef.current?.reset();
+      navigator.mediaDevices?.removeEventListener?.('devicechange', handleDeviceChange);
+    };
+  }, [refreshCameras]);
 
   return {
     videoRef,

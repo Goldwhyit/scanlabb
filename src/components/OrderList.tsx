@@ -114,10 +114,10 @@ export default function OrderList({
               transition: swipingLineId === line.id ? 'none' : 'transform 160ms ease',
               touchAction: 'pan-y',
             }}
-            className="relative z-10 bg-[#171724] w-full px-3 py-2.5 flex items-center gap-2 text-left active:bg-white/5"
+            className="relative z-10 bg-[#171724] w-full px-3 py-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-left active:bg-white/5"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-white font-semibold truncate whitespace-nowrap">
+              <p className="text-sm text-white font-semibold truncate whitespace-nowrap leading-tight">
                 {line.artikelnummer}
                 {line.kleurnummer && line.kleurnummer !== line.artikelnummer && (
                   <span className="text-gray-400 font-normal"> · {line.kleurnummer}</span>
