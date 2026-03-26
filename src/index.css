@@ -11,6 +11,48 @@ html, body {
   background: #0f0f1a;
 }
 
+html.theme-light,
+html.theme-light body {
+  background: #f3f6fb;
+}
+
+html.theme-light .bg-\[\#0f0f1a\] {
+  background: #f3f6fb !important;
+}
+
+html.theme-light .bg-\[\#171724\],
+html.theme-light .bg-\[\#12121f\],
+html.theme-light .bg-\[\#0a0a14\],
+html.theme-light .bg-black {
+  background: #e9edf5 !important;
+}
+
+html.theme-light .text-white {
+  color: #111827 !important;
+}
+
+html.theme-light .text-gray-300 {
+  color: #374151 !important;
+}
+
+html.theme-light .text-gray-400,
+html.theme-light .text-gray-500,
+html.theme-light .text-gray-600 {
+  color: #6b7280 !important;
+}
+
+html.theme-light .bg-white\/5,
+html.theme-light .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html.theme-light .border-white\/5,
+html.theme-light .border-white\/10,
+html.theme-light .border-white\/15,
+html.theme-light .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
 #root {
   min-height: 100%;
 }

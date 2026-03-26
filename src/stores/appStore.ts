@@ -12,6 +12,7 @@ type Page =
 
 interface AppState {
   currentPage: Page;
+  theme: 'dark' | 'light';
   pendingOrderType: 'verkoop' | 'inkoop' | null;
   activeSession: Session | null;
   scanActive: boolean;
@@ -19,6 +20,7 @@ interface AppState {
   lastScanResult: { success: boolean; message: string; barcode?: string } | null;
 
   setPage: (page: Page) => void;
+  setTheme: (theme: 'dark' | 'light') => void;
   setPendingOrderType: (type: 'verkoop' | 'inkoop') => void;
   startSession: (type: 'verkoop' | 'inkoop', klant: Customer) => Session;
   resumeSession: (session: Session) => void;
@@ -32,6 +34,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentPage: 'home',
+      theme: 'dark',
       pendingOrderType: null,
       activeSession: null,
       scanActive: false,
@@ -39,6 +42,7 @@ export const useAppStore = create<AppState>()(
       lastScanResult: null,
 
       setPage: (page) => set({ currentPage: page }),
+      setTheme: (theme) => set({ theme }),
       setPendingOrderType: (type) => set({ pendingOrderType: type }),
 
       startSession: (type, klant) => {
@@ -77,6 +81,7 @@ export const useAppStore = create<AppState>()(
       name: 'scanlabb-app-state',
       partialize: (state) => ({
         activeSession: state.activeSession,
+        theme: state.theme,
         currentPage: state.currentPage === 'scan-sessie' ? 'scan-sessie' : 'home',
       }),
     }

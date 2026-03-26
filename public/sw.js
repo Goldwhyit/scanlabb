@@ -1,10 +1,6 @@
-const CACHE_NAME = 'scanlabb-v1';
-const STATIC_ASSETS = ['./'];
+const CACHE_NAME = 'scanlabb-v2';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
   self.skipWaiting();
 });
 
@@ -18,14 +14,19 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only cache http/https requests, ignore chrome-extension etc.
+  if (!event.request.url.startsWith('http')) return;
   if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        if (response.ok) {
+        if (response.ok && response.type !== 'opaque') {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone).catch(() => {});
+          });
         }
         return response;
       }).catch(() => cached || new Response('Offline', { status: 503 }));
