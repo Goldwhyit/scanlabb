@@ -1,7 +1,8 @@
-import { ShoppingCart, PackageSearch, Database, Settings, Wifi, WifiOff } from 'lucide-react';
-import { useAppStore } from '../stores/appStore';
 import { useEffect, useState } from 'react';
+import { ShoppingCart, PackageSearch, Wifi, WifiOff, ChevronRight } from 'lucide-react';
+import { useAppStore } from '../stores/appStore';
 import { db } from '../db/database';
+import Header from '../components/Header';
 
 export default function HomePage() {
   const { setPage, setPendingOrderType, activeSession } = useAppStore();
@@ -12,11 +13,11 @@ export default function HomePage() {
   useEffect(() => {
     db.articles.count().then(setArticleCount);
     db.customers.count().then(setCustomerCount);
-    const onOnline = () => setIsOnline(true);
-    const onOffline = () => setIsOnline(false);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
   const startOrder = (type: 'verkoop' | 'inkoop') => {
@@ -25,112 +26,165 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0f0f1a] text-white">
-      {/* Header */}
-      <header className="px-6 pt-10 pb-6">
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">
-              Scan<span className="text-[#00e5ff]">Labb</span>
-            </h1>
-            <p className="text-sm text-gray-400 mt-0.5">Barcode scan systeem</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            {isOnline
-              ? <><Wifi size={14} className="text-green-400" /><span className="text-green-400">Online</span></>
-              : <><WifiOff size={14} className="text-yellow-400" /><span className="text-yellow-400">Offline</span></>
-            }
-          </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+      <Header />
+
+      <main style={{ flex: 1, maxWidth: 680, width: '100%', margin: '0 auto', padding: '24px 20px' }}>
+        {/* Online status */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          background: 'var(--glass-bg)',
+          backdropFilter: 'var(--glass-blur)',
+          border: '1px solid var(--border-1)',
+          borderRadius: 99, padding: '5px 12px',
+          fontSize: 11, fontWeight: 600,
+          color: isOnline ? 'var(--accent)' : '#F59E0B',
+          marginBottom: 28,
+          animation: 'fadeUp 0.4s var(--ease-spring)',
+        }}>
+          {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {isOnline ? 'Online' : 'Offline modus'}
         </div>
 
-        {/* Stats bar */}
-        <div className="flex gap-3 mt-5">
-          <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-[#00e5ff]">{articleCount.toLocaleString('nl')}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Artikelen</p>
-          </div>
-          <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-[#00e5ff]">{customerCount.toLocaleString('nl')}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Klanten</p>
-          </div>
-        </div>
-      </header>
-
-      {/* Resume session banner */}
-      {activeSession && (
-        <div className="mx-6 mb-4 bg-[#00e5ff]/10 border border-[#00e5ff]/30 rounded-2xl p-4">
-          <p className="text-xs text-[#00e5ff] font-semibold uppercase tracking-wide mb-1">Sessie actief</p>
-          <p className="text-white font-bold">
-            {activeSession.type === 'verkoop' ? 'Verkooporder' : 'Inkooporder'} — {activeSession.klant?.klantnaam ?? 'Onbekend'}
-          </p>
-          <button
-            onClick={() => setPage('scan-sessie')}
-            className="mt-3 w-full bg-[#00e5ff] text-black font-bold py-3 rounded-xl text-sm active:scale-95 transition-transform"
-          >
-            Hervat sessie →
-          </button>
-        </div>
-      )}
-
-      {/* Main actions */}
-      <main className="flex-1 px-6 space-y-4">
-        <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Nieuwe sessie</p>
-
-        <button
-          onClick={() => startOrder('verkoop')}
-          className="w-full bg-gradient-to-r from-[#00e5ff] to-[#0096ff] text-black font-black py-5 rounded-2xl flex items-center gap-4 px-6 active:scale-95 transition-transform shadow-lg shadow-[#00e5ff]/20"
-        >
-          <div className="bg-black/20 rounded-xl p-2.5">
-            <ShoppingCart size={24} />
-          </div>
-          <div className="text-left">
-            <p className="text-lg leading-tight">Verkooporder</p>
-            <p className="text-xs font-normal opacity-70">Artikelen inscannen voor verkoop</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => startOrder('inkoop')}
-          className="w-full bg-gradient-to-r from-[#7c3aed] to-[#a855f7] text-white font-black py-5 rounded-2xl flex items-center gap-4 px-6 active:scale-95 transition-transform shadow-lg shadow-purple-500/20"
-        >
-          <div className="bg-black/20 rounded-xl p-2.5">
-            <PackageSearch size={24} />
-          </div>
-          <div className="text-left">
-            <p className="text-lg leading-tight">Inkooporder</p>
-            <p className="text-xs font-normal opacity-70">Artikelen inscannen voor inkoop</p>
-          </div>
-        </button>
-
-        <div className="pt-2">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-3">Beheer</p>
-          <div className="grid grid-cols-2 gap-3">
+        {/* Active session banner */}
+        {activeSession && (
+          <div style={{
+            background: 'var(--glass-bg)',
+            backdropFilter: 'var(--glass-blur)',
+            border: '1px solid var(--border-accent)',
+            borderRadius: 18,
+            padding: '16px 18px',
+            marginBottom: 20,
+            boxShadow: '0 0 32px var(--accent-glow)',
+            animation: 'fadeUp 0.4s var(--ease-spring)',
+          }}>
+            <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Sessie actief
+            </p>
+            <p style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
+              {activeSession.type === 'verkoop' ? 'Verkooporder' : 'Inkooporder'} — {activeSession.klant?.klantnaam ?? '—'}
+            </p>
             <button
+              onClick={() => setPage('scan-sessie')}
+              style={{
+                width: '100%', padding: '11px 0',
+                background: 'var(--accent)',
+                border: 'none', borderRadius: 12,
+                color: '#030712', fontWeight: 800, fontSize: 14,
+                cursor: 'pointer', fontFamily: 'Outfit, sans-serif',
+                boxShadow: '0 0 20px var(--accent-glow)',
+                transition: 'all 0.2s var(--ease)',
+              }}
+            >
+              Hervat sessie →
+            </button>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24,
+          animation: 'fadeUp 0.4s var(--ease-spring) 60ms both',
+        }}>
+          {[
+            { label: 'Artikelen', value: articleCount.toLocaleString('nl'), warn: articleCount === 0 },
+            { label: 'Klanten', value: customerCount.toLocaleString('nl'), warn: customerCount === 0 },
+          ].map((s, i) => (
+            <div
+              key={i}
               onClick={() => setPage('database-beheer')}
-              className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-start gap-3 active:bg-white/10 transition-colors"
+              style={{
+                background: 'var(--glass-bg)',
+                backdropFilter: 'var(--glass-blur)',
+                border: s.warn ? '1px solid rgba(245,158,11,0.25)' : '1px solid var(--border-1)',
+                borderRadius: 16, padding: '16px 18px',
+                cursor: 'pointer',
+                transition: 'all 0.2s var(--ease)',
+              }}
             >
-              <Database size={22} className="text-gray-300" />
-              <div>
-                <p className="font-bold text-sm text-white">Database</p>
-                <p className="text-xs text-gray-400">Artikelen & klanten</p>
-              </div>
-            </button>
-            <button
-              onClick={() => setPage('export-instellingen')}
-              className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-start gap-3 active:bg-white/10 transition-colors"
-            >
-              <Settings size={22} className="text-gray-300" />
-              <div>
-                <p className="font-bold text-sm text-white">Export</p>
-                <p className="text-xs text-gray-400">Opmaak & kolommen</p>
-              </div>
-            </button>
-          </div>
+              <p style={{ margin: '0 0 4px', fontFamily: 'DM Mono, monospace', fontSize: 26, fontWeight: 500, color: s.warn ? '#F59E0B' : 'var(--accent)', letterSpacing: '-0.02em' }}>
+                {s.value}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{s.label}</p>
+              {s.warn && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#F59E0B' }}>→ Upload bestand</p>}
+            </div>
+          ))}
+        </div>
+
+        {/* Order buttons */}
+        <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Nieuwe sessie
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Verkoop */}
+          <button
+            onClick={() => startOrder('verkoop')}
+            style={{
+              width: '100%', padding: '20px 20px',
+              background: 'linear-gradient(135deg, rgba(0,245,212,0.12) 0%, rgba(0,229,255,0.06) 100%)',
+              border: '1px solid rgba(0,245,212,0.22)',
+              borderRadius: 20,
+              display: 'flex', alignItems: 'center', gap: 16,
+              cursor: 'pointer', textAlign: 'left',
+              boxShadow: '0 0 32px rgba(0,245,212,0.08)',
+              transition: 'all 0.3s var(--ease)',
+              animation: 'fadeUp 0.4s var(--ease-spring) 120ms both',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 48px rgba(0,245,212,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 32px rgba(0,245,212,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 20px var(--accent-glow)',
+            }}>
+              <ShoppingCart size={22} color="#030712" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Verkooporder</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-3)' }}>Artikelen inscannen voor verkoop</p>
+            </div>
+            <ChevronRight size={18} color="var(--accent)" />
+          </button>
+
+          {/* Inkoop */}
+          <button
+            onClick={() => startOrder('inkoop')}
+            style={{
+              width: '100%', padding: '20px 20px',
+              background: 'linear-gradient(135deg, rgba(168,85,247,0.10) 0%, rgba(124,58,237,0.05) 100%)',
+              border: '1px solid rgba(168,85,247,0.20)',
+              borderRadius: 20,
+              display: 'flex', alignItems: 'center', gap: 16,
+              cursor: 'pointer', textAlign: 'left',
+              boxShadow: '0 0 32px rgba(168,85,247,0.06)',
+              transition: 'all 0.3s var(--ease)',
+              animation: 'fadeUp 0.4s var(--ease-spring) 180ms both',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 48px rgba(168,85,247,0.15)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 32px rgba(168,85,247,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--inkoop) 0%, #7C3AED 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 20px var(--inkoop-glow)',
+            }}>
+              <PackageSearch size={22} color="#ffffff" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Inkooporder</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-3)' }}>Artikelen inscannen voor inkoop</p>
+            </div>
+            <ChevronRight size={18} color="var(--inkoop)" />
+          </button>
         </div>
       </main>
 
-      <footer className="px-6 py-6 text-center text-xs text-gray-600">
-        ScanLabb v1.0 — LoopLabb B.V.
+      <footer style={{ textAlign: 'center', padding: '20px', fontSize: 11, color: 'var(--text-3)' }}>
+        ScanLabb v2.0 — LoopLabb B.V. Amsterdam
       </footer>
     </div>
   );

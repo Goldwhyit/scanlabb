@@ -8,6 +8,7 @@ export interface Article {
   maat: string;
   artikel?: string;
   kleur?: string;
+  prijs?: number;
   [key: string]: unknown;
 }
 
@@ -15,10 +16,6 @@ export interface Customer {
   id?: number;
   klantnummer: string;
   klantnaam: string;
-  filiaal?: string;
-  klantrelatie?: string;
-  debiteurnummer?: string;
-  magazijn?: string;
 }
 
 export interface OrderLine {
@@ -30,6 +27,7 @@ export interface OrderLine {
   maat: string;
   artikel?: string;
   kleur?: string;
+  prijs?: number;
   aantal: number;
   timestamp: number;
 }

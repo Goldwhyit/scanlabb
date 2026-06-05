@@ -1,113 +1,142 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, UserCheck, User } from 'lucide-react';
+import { Search, UserCheck } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { db } from '../db/database';
 import type { Customer } from '../db/database';
+import Header from '../components/Header';
 
 export default function KlantKiezenPage() {
   const { setPage, pendingOrderType, startSession } = useAppStore();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Customer[]>([]);
   const [all, setAll] = useState<Customer[]>([]);
+  const [results, setResults] = useState<Customer[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isVerkoop = pendingOrderType === 'verkoop';
+  const accent = isVerkoop ? 'var(--accent)' : 'var(--inkoop)';
+  const glow = isVerkoop ? 'var(--accent-glow)' : 'var(--inkoop-glow)';
+
   useEffect(() => {
-    db.customers.toArray().then(setAll);
-    inputRef.current?.focus();
+    db.customers.toArray().then((c) => { setAll(c); setResults(c.slice(0, 40)); });
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults(all.slice(0, 30));
-      return;
-    }
-    const q = query.toLowerCase();
-    setResults(
-      all
-        .filter(
-          (c) =>
-            c.klantnaam.toLowerCase().includes(q) ||
-            c.klantnummer.toLowerCase().includes(q)
-        )
-        .slice(0, 30)
-    );
+    const q = query.trim().toLowerCase();
+    if (!q) { setResults(all.slice(0, 40)); return; }
+    setResults(all.filter((c) =>
+      c.klantnaam.toLowerCase().includes(q) || c.klantnummer.toLowerCase().includes(q)
+    ).slice(0, 40));
   }, [query, all]);
 
-  const selectKlant = (klant: Customer) => {
-    if (!pendingOrderType) return;
-    startSession(pendingOrderType, klant);
+  const select = (klant: Customer) => {
+    if (pendingOrderType) startSession(pendingOrderType, klant);
   };
 
-  const orderLabel = pendingOrderType === 'verkoop' ? 'Verkooporder' : 'Inkooporder';
-  const accentColor = pendingOrderType === 'verkoop' ? 'text-[#00e5ff]' : 'text-purple-400';
-  const btnColor =
-    pendingOrderType === 'verkoop'
-      ? 'bg-[#00e5ff] text-black'
-      : 'bg-purple-500 text-white';
-
   return (
-    <div className="flex flex-col min-h-screen bg-[#0f0f1a] text-white">
-      <header className="px-4 pt-8 pb-4 flex items-center gap-3">
-        <button
-          onClick={() => setPage('home')}
-          className="p-2 rounded-xl bg-white/5 active:bg-white/10"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h2 className="text-xl font-black">Klant kiezen</h2>
-          <p className={`text-sm ${accentColor} font-semibold`}>{orderLabel}</p>
-        </div>
-      </header>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+      <Header
+        title={isVerkoop ? 'Verkooporder' : 'Inkooporder'}
+        subtitle="Klant kiezen"
+        showBack
+        onBack={() => setPage('home')}
+      />
 
-      <div className="px-4 pb-3">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Zoek op naam of nummer..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-white/10 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#00e5ff]/50 text-base"
-          />
-        </div>
-      </div>
-
-      {all.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8 text-center">
-          <User size={48} className="text-gray-600" />
-          <p className="text-gray-400 text-sm">
-            Geen klantenbestand geladen.{' '}
-            <button
-              onClick={() => setPage('database-beheer')}
-              className="text-[#00e5ff] underline"
-            >
-              Upload een klantenbestand
-            </button>
+      <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Search */}
+        <div style={{ padding: '16px 20px 8px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Zoek op naam of klantnummer…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '13px 14px 13px 42px',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'var(--glass-blur)',
+                border: '1px solid var(--border-2)',
+                borderRadius: 14,
+                color: 'var(--text-1)',
+                fontSize: 15,
+                fontFamily: 'Outfit, sans-serif',
+                outline: 'none',
+                boxShadow: 'var(--glass-shadow)',
+                transition: 'border-color 0.2s var(--ease)',
+              }}
+              onFocus={(e) => e.target.style.borderColor = accent}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-2)'}
+            />
+          </div>
+          <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
+            {results.length} klanten gevonden
           </p>
         </div>
-      )}
 
-      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-6">
-        {results.map((klant) => (
-          <button
-            key={klant.id}
-            onClick={() => selectKlant(klant)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 active:bg-white/10 transition-colors text-left"
-          >
-            <div className="bg-white/10 rounded-full p-2.5 shrink-0">
-              <UserCheck size={20} className="text-gray-300" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-white truncate">{klant.klantnaam || '—'}</p>
-              <p className="text-sm text-gray-400">{klant.klantnummer || 'Geen nummer'}</p>
-            </div>
-            <div className={`ml-auto shrink-0 ${btnColor} rounded-xl px-3 py-1.5 text-xs font-bold`}>
-              Kies
-            </div>
-          </button>
-        ))}
+        {/* Empty state */}
+        {all.length === 0 && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', color: 'var(--text-3)' }}>
+            <UserCheck size={40} />
+            <p style={{ margin: 0, fontSize: 14, textAlign: 'center' }}>
+              Geen klantenbestand geladen.{' '}
+              <button onClick={() => setPage('database-beheer')} style={{ background: 'none', border: 'none', color: accent, cursor: 'pointer', fontSize: 14, padding: 0, textDecoration: 'underline' }}>
+                Upload een bestand
+              </button>
+            </p>
+          </div>
+        )}
+
+        {/* Results */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 20px 80px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {results.map((klant, i) => (
+            <button
+              key={klant.id}
+              onClick={() => select(klant)}
+              style={{
+                width: '100%',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'var(--glass-blur)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 14,
+                padding: '14px 16px',
+                display: 'flex', alignItems: 'center', gap: 14,
+                cursor: 'pointer', textAlign: 'left',
+                animation: `rowIn 0.3s var(--ease-spring) ${Math.min(i * 25, 200)}ms both`,
+                transition: 'all 0.2s var(--ease)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.transform = 'translateX(3px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.transform = 'translateX(0)'; }}
+            >
+              <div style={{
+                width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                background: `${accent}18`,
+                border: `1px solid ${accent}30`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <UserCheck size={17} color={accent} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {klant.klantnaam || '—'}
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-3)', fontFamily: 'DM Mono, monospace' }}>
+                  {klant.klantnummer || 'Geen nummer'}
+                </p>
+              </div>
+              <div style={{
+                padding: '5px 12px', borderRadius: 8,
+                background: `${accent}18`, border: `1px solid ${accent}30`,
+                fontSize: 12, fontWeight: 700, color: accent,
+                flexShrink: 0,
+              }}>
+                Kies
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

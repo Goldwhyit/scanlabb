@@ -1,370 +1,302 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import {
-  ArrowLeft,
-  Pause,
-  Play,
-  Download,
-  ScanLine,
-  Camera,
-  CameraOff,
-  X,
-} from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Download, LogOut, ScanLine, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { db } from '../db/database';
 import type { OrderLine, ExportConfig } from '../db/database';
-import OrderList from '../components/OrderList';
+import Header from '../components/Header';
+import ScannerViewport from '../components/ScannerViewport';
+import KPICards from '../components/KPICards';
+import OrderTable from '../components/OrderTable';
 import { useScanner } from '../utils/useScanner';
 import { exportToExcel, DEFAULT_VERKOOP_COLUMNS, DEFAULT_INKOOP_COLUMNS } from '../utils/exportUtils';
 
 export default function ScanSessiePage() {
   const { activeSession, endSession, setLastScanResult, lastScanResult } = useAppStore();
   const [lines, setLines] = useState<OrderLine[]>([]);
-  const [manualAantal, setManualAantal] = useState<string>('');
+  const [manualAantal, setManualAantal] = useState('');
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
-  const manualInputRef = useRef<HTMLInputElement>(null);
-  const manualAantalRef = useRef<string>('');
+  const [flashId, setFlashId] = useState<number | null>(null);
+  const manualRef = useRef<HTMLInputElement>(null);
 
   const isVerkoop = activeSession?.type === 'verkoop';
-  
-  const accentText = isVerkoop ? 'text-[#00e5ff]' : 'text-purple-400';
-  const accentBgBtn = isVerkoop
-    ? 'bg-[#00e5ff] text-black'
-    : 'bg-purple-500 text-white';
+  const accent = isVerkoop ? 'var(--accent)' : 'var(--inkoop)';
+  const glow = isVerkoop ? 'var(--accent-glow)' : 'var(--inkoop-glow)';
 
-  // Load existing order lines for session
   const loadLines = useCallback(async () => {
     if (!activeSession) return;
-    const all = await db.orderLines
-      .where('sessionId')
-      .equals(activeSession.id)
-      .sortBy('timestamp');
-    setLines(all.reverse()); // newest first
+    const all = await db.orderLines.where('sessionId').equals(activeSession.id).sortBy('timestamp');
+    setLines(all.reverse());
   }, [activeSession]);
 
-  useEffect(() => {
-    loadLines();
-  }, [loadLines]);
+  useEffect(() => { loadLines(); }, [loadLines]);
 
-  // Load export config
   useEffect(() => {
     if (!activeSession) return;
-    db.exportConfigs
-      .where('orderType')
-      .equals(activeSession.type)
-      .first()
-      .then((cfg) => {
-        if (cfg) {
-          setExportConfig(cfg);
-        } else {
-          setExportConfig({
-            name: 'Standaard',
-            orderType: activeSession.type,
-            columns: isVerkoop ? DEFAULT_VERKOOP_COLUMNS : DEFAULT_INKOOP_COLUMNS,
-            skipFirstRow: false,
-            dataStartRow: 1,
-          });
-        }
+    db.exportConfigs.where('orderType').equals(activeSession.type).first().then((cfg) => {
+      setExportConfig(cfg ?? {
+        name: 'Standaard', orderType: activeSession.type,
+        columns: isVerkoop ? DEFAULT_VERKOOP_COLUMNS : DEFAULT_INKOOP_COLUMNS,
+        skipFirstRow: false, dataStartRow: 1,
       });
+    });
   }, [activeSession, isVerkoop]);
 
-  // Persist session to db
   useEffect(() => {
-    if (activeSession) {
-      db.sessions.put({ ...activeSession, updatedAt: Date.now() });
-    }
+    if (activeSession) db.sessions.put({ ...activeSession, updatedAt: Date.now() });
   }, [activeSession]);
 
-  useEffect(() => {
-    manualAantalRef.current = manualAantal;
-  }, [manualAantal]);
+  const handleScan = useCallback(async (barcode: string) => {
+    if (!activeSession) return;
+    const article = await db.articles.where('barcode').equals(barcode).first();
 
-  const handleScan = useCallback(
-    async (barcode: string) => {
-      if (!activeSession) return;
+    if (!article) {
+      setLastScanResult({ success: false, message: `Barcode niet gevonden: ${barcode}`, barcode });
+      return;
+    }
 
-      // Look up article by barcode (primary key for scan logic)
-      const article = await db.articles.where('barcode').equals(barcode).first();
+    const qty = parseInt(manualAantal, 10);
+    const safeQty = (!isNaN(qty) && qty >= 1) ? qty : 1;
 
-      if (!article) {
-        setLastScanResult({
-          success: false,
-          message: `Barcode niet gevonden: ${barcode}`,
-          barcode,
-        });
-        return;
-      }
+    const existing = await db.orderLines
+      .where('sessionId').equals(activeSession.id)
+      .filter((l) => l.barcode === barcode).first();
 
-      const qty = manualAantalRef.current ? parseInt(manualAantalRef.current, 10) : 1;
-      const safeQty = isNaN(qty) || qty < 1 ? 1 : qty;
-
-      // Check if this barcode already exists in the session
-      const existing = await db.orderLines
-        .where('sessionId')
-        .equals(activeSession.id)
-        .filter((l) => l.barcode === barcode)
-        .first();
-
-      if (existing && existing.id) {
-        await db.orderLines.update(existing.id, {
-          aantal: existing.aantal + safeQty,
-          timestamp: Date.now(),
-        });
-      } else {
-        await db.orderLines.add({
-          sessionId: activeSession.id,
-          barcode,
-          artikelnummer: article.artikelnummer,
-          kleurnummer: article.kleurnummer,
-          maat: article.maat,
-          artikel: article.artikel,
-          kleur: article.kleur,
-          aantal: safeQty,
-          timestamp: Date.now(),
-        });
-      }
-
-      setLastScanResult({
-        success: true,
-        message: `${article.artikelnummer} · ${article.kleurnummer} · ${article.maat}`,
+    let updatedId: number;
+    if (existing?.id) {
+      await db.orderLines.update(existing.id, { aantal: existing.aantal + safeQty, timestamp: Date.now() });
+      updatedId = existing.id;
+    } else {
+      updatedId = await db.orderLines.add({
+        sessionId: activeSession.id,
         barcode,
-      });
+        artikelnummer: article.artikelnummer,
+        kleurnummer: article.kleurnummer,
+        maat: article.maat,
+        artikel: article.artikel,
+        kleur: article.kleur,
+        prijs: article.prijs,
+        aantal: safeQty,
+        timestamp: Date.now(),
+      }) as number;
+    }
 
-      // Reset manual antal after scan
-      setManualAantal('');
-      manualAantalRef.current = '';
+    setLastScanResult({ success: true, message: `${article.artikelnummer} · ${article.kleurnummer} · ${article.maat}`, barcode });
+    setFlashId(updatedId);
+    setTimeout(() => setFlashId(null), 600);
+    setManualAantal('');
+    await loadLines();
+  }, [activeSession, manualAantal, setLastScanResult, loadLines]);
 
-      await loadLines();
-    },
-    [activeSession, setLastScanResult, loadLines]
-  );
-
-  const { videoRef, isActive, hasPermission, cameras, selectedCamera, toggleScan, switchCamera } =
-    useScanner({
-      onScan: handleScan,
-      onError: (err) => setLastScanResult({ success: false, message: err }),
-    });
+  const { videoRef, isActive, hasPermission, cameras, selectedCamera, toggleScan, switchCamera } = useScanner({
+    onScan: handleScan,
+    onError: (e) => setLastScanResult({ success: false, message: e }),
+  });
 
   const handleIncrement = async (id: number) => {
-    const line = lines.find((l) => l.id === id);
-    if (!line) return;
-    await db.orderLines.update(id, { aantal: line.aantal + 1 });
-    await loadLines();
+    const l = lines.find((x) => x.id === id);
+    if (l) { await db.orderLines.update(id, { aantal: l.aantal + 1 }); await loadLines(); }
   };
-
   const handleDecrement = async (id: number) => {
-    const line = lines.find((l) => l.id === id);
-    if (!line) return;
-    if (line.aantal <= 1) return;
-    await db.orderLines.update(id, { aantal: line.aantal - 1 });
-    await loadLines();
+    const l = lines.find((x) => x.id === id);
+    if (l && l.aantal > 1) { await db.orderLines.update(id, { aantal: l.aantal - 1 }); await loadLines(); }
   };
-
   const handleChangeAantal = async (id: number, val: number) => {
-    await db.orderLines.update(id, { aantal: val });
-    await loadLines();
+    await db.orderLines.update(id, { aantal: val }); await loadLines();
   };
-
   const handleDelete = async (id: number) => {
-    await db.orderLines.delete(id);
-    await loadLines();
+    await db.orderLines.delete(id); await loadLines();
   };
 
-  const handleExport = async () => {
+  const handleExport = () => {
     if (!exportConfig || !activeSession) return;
     const ts = new Date().toISOString().slice(0, 10);
-    const klantNaam = activeSession.klant?.klantnaam ?? 'onbekend';
-    const filename = `${activeSession.type}-${klantNaam}-${ts}`;
-    await exportToExcel(lines, exportConfig, filename, activeSession.type, activeSession.klant);
+    const klant = activeSession.klant?.klantnaam ?? 'onbekend';
+    exportToExcel(lines, exportConfig, `${activeSession.type}-${klant}-${ts}`, activeSession.type, klant);
   };
 
-  const handleEndSession = () => {
-    if (isActive) toggleScan();
-    endSession();
-  };
+  const handleEnd = () => { if (isActive) toggleScan(); endSession(); };
 
   const totalItems = lines.reduce((s, l) => s + l.aantal, 0);
-  const totalLines = lines.length;
+  const fulfillmentRate = lines.length > 0 ? Math.min(100, Math.round((totalItems / Math.max(totalItems, 1)) * 100)) : 0;
 
   if (!activeSession) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0f0f1a] text-white">
-      {/* Top bar */}
-      <div className={`${isVerkoop ? 'bg-[#00e5ff]/10 border-b border-[#00e5ff]/20' : 'bg-purple-500/10 border-b border-purple-500/20'} px-4 py-3`}>
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handleEndSession}
-            className="p-2 rounded-xl bg-white/5 active:bg-white/10"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="text-center">
-            <p className={`text-xs font-bold uppercase tracking-wide ${accentText}`}>
-              {isVerkoop ? 'Verkooporder' : 'Inkooporder'}
-            </p>
-            <p className="text-sm font-bold text-white truncate max-w-[160px]">
-              {activeSession.klant?.klantnaam ?? '—'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">{totalLines} regels</p>
-            <p className={`text-sm font-bold ${accentText}`}>{totalItems} stuks</p>
-          </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+      <Header
+        title={isVerkoop ? 'Verkooporder' : 'Inkooporder'}
+        subtitle={activeSession.klant?.klantnaam ?? '—'}
+        showBack
+        onBack={handleEnd}
+      />
+
+      {/* Order type tab indicator */}
+      <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', padding: '12px 20px 0' }}>
+        <div style={{
+          display: 'inline-flex',
+          background: 'var(--glass-bg)',
+          backdropFilter: 'var(--glass-blur)',
+          border: '1px solid var(--border-1)',
+          borderRadius: 12, padding: 4, gap: 2,
+        }}>
+          {(['verkoop', 'inkoop'] as const).map((t) => (
+            <div
+              key={t}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 9,
+                fontSize: 12, fontWeight: 700,
+                background: activeSession.type === t ? (t === 'verkoop' ? 'rgba(0,245,212,0.15)' : 'rgba(168,85,247,0.15)') : 'transparent',
+                color: activeSession.type === t ? (t === 'verkoop' ? 'var(--accent)' : 'var(--inkoop)') : 'var(--text-3)',
+                border: activeSession.type === t ? `1px solid ${t === 'verkoop' ? 'rgba(0,245,212,0.3)' : 'rgba(168,85,247,0.3)'}` : '1px solid transparent',
+                transition: 'all 0.3s var(--ease)',
+                textTransform: 'capitalize',
+              }}
+            >
+              {t === 'verkoop' ? 'Verkooporder' : 'Inkooporder'}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Camera section */}
-      <div className="relative bg-black">
-        <video
-          ref={videoRef}
-          className="w-full h-56 object-cover"
-          style={{ display: isActive ? 'block' : 'none' }}
-          playsInline
-          muted
+      <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
+        {/* Scanner */}
+        <ScannerViewport
+          videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+          isActive={isActive}
+          hasPermission={hasPermission}
+          cameras={cameras}
+          selectedCamera={selectedCamera}
+          onToggle={toggleScan}
+          onSwitchCamera={switchCamera}
+          orderType={activeSession.type}
         />
 
-        {!isActive && (
-          <div className="w-full h-56 flex flex-col items-center justify-center gap-3 bg-[#0a0a14]">
-            {hasPermission === false ? (
-              <>
-                <CameraOff size={40} className="text-gray-600" />
-                <p className="text-gray-500 text-sm text-center px-8">
-                  Camera toegang geweigerd. Controleer uw browser-instellingen.
-                </p>
-              </>
-            ) : (
-              <>
-                <Camera size={40} className="text-gray-600" />
-                <p className="text-gray-500 text-sm">Camera staat uit</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Scan overlay when active */}
-        {isActive && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className={`w-56 h-28 border-2 ${isVerkoop ? 'border-[#00e5ff]' : 'border-purple-400'} rounded-lg opacity-80`}>
-              <div className={`absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 ${isVerkoop ? 'border-[#00e5ff]' : 'border-purple-400'} rounded-tl`} />
-              <div className={`absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 ${isVerkoop ? 'border-[#00e5ff]' : 'border-purple-400'} rounded-tr`} />
-              <div className={`absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 ${isVerkoop ? 'border-[#00e5ff]' : 'border-purple-400'} rounded-bl`} />
-              <div className={`absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 ${isVerkoop ? 'border-[#00e5ff]' : 'border-purple-400'} rounded-br`} />
+        {/* Scan result feedback */}
+        {lastScanResult && (
+          <div style={{ padding: '0 20px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 14px',
+              background: lastScanResult.success ? 'rgba(0,245,212,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${lastScanResult.success ? 'rgba(0,245,212,0.25)' : 'rgba(239,68,68,0.25)'}`,
+              borderRadius: 12,
+              animation: 'fadeUp 0.3s var(--ease-spring)',
+            }}>
+              {lastScanResult.success
+                ? <CheckCircle2 size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                : <AlertCircle size={16} color="#F87171" style={{ flexShrink: 0 }} />
+              }
+              <p style={{
+                margin: 0, flex: 1, fontSize: 13, fontWeight: 500,
+                color: lastScanResult.success ? 'var(--accent)' : '#F87171',
+                fontFamily: lastScanResult.success ? 'DM Mono, monospace' : 'Outfit, sans-serif',
+              }}>
+                {lastScanResult.message}
+              </p>
+              <button onClick={() => setLastScanResult(null)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 4 }}>
+                <X size={14} />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Camera controls overlay */}
-        <div className="absolute bottom-2 inset-x-2 flex flex-col gap-2">
-          <button
-            onClick={toggleScan}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm ${accentBgBtn} active:scale-95 transition-transform`}
-          >
-            {isActive ? (
-              <><Pause size={16} /> Pauzeer</>
-            ) : (
-              <><Play size={16} /> Start scan</>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {cameras.length > 1 && (
-        <div className="mx-4 mt-3 bg-white/5 border border-white/10 rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <label htmlFor="camera-select" className="text-xs text-gray-300 shrink-0">
-              Camera kiezen
+        {/* Manual quantity + actions */}
+        <div style={{ padding: '0 20px', display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>
+              Aantal vóór scan
             </label>
-            <select
-              id="camera-select"
-              value={selectedCamera}
-              onChange={(e) => switchCamera(e.target.value)}
-              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none"
+            <input
+              ref={manualRef}
+              type="number"
+              min={1}
+              placeholder="1"
+              value={manualAantal}
+              onChange={(e) => setManualAantal(e.target.value)}
+              style={{
+                width: '100%', padding: '11px 14px',
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--border-2)',
+                borderRadius: 12,
+                color: 'var(--text-1)',
+                fontFamily: 'DM Mono, monospace',
+                fontSize: 16, fontWeight: 500,
+                textAlign: 'center', outline: 'none',
+                transition: 'border-color 0.2s var(--ease)',
+              }}
+              onFocus={(e) => e.target.style.borderColor = accent}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-2)'}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>Export</label>
+            <button
+              onClick={handleExport}
+              style={{
+                height: 44,
+                padding: '0 16px',
+                background: `${accent}18`,
+                border: `1px solid ${accent}35`,
+                borderRadius: 12,
+                color: accent,
+                fontWeight: 700, fontSize: 13,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7,
+                fontFamily: 'Outfit, sans-serif',
+                transition: 'all 0.2s var(--ease)',
+                boxShadow: `0 0 16px ${glow}`,
+              }}
             >
-              {cameras.map((cam, idx) => (
-                <option key={cam.deviceId} value={cam.deviceId} className="text-black">
-                  {cam.label || `Camera ${idx + 1}`}
-                </option>
-              ))}
-            </select>
+              <Download size={15} /> XLSX
+            </button>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>Sessie</label>
+            <button
+              onClick={handleEnd}
+              style={{
+                height: 44, padding: '0 14px',
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.20)',
+                borderRadius: 12,
+                color: '#F87171', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 7,
+                fontSize: 13, fontWeight: 700,
+                fontFamily: 'Outfit, sans-serif',
+              }}
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Scan feedback */}
-      {lastScanResult && (
-        <div
-          className={`mx-4 mt-3 px-4 py-3 rounded-xl flex items-center gap-3 ${
-            lastScanResult.success
-              ? 'bg-green-500/15 border border-green-500/30'
-              : 'bg-red-500/15 border border-red-500/30'
-          }`}
-        >
-          <ScanLine
-            size={18}
-            className={lastScanResult.success ? 'text-green-400 shrink-0' : 'text-red-400 shrink-0'}
-          />
-          <p
-            className={`text-sm font-medium flex-1 ${
-              lastScanResult.success ? 'text-green-300' : 'text-red-300'
-            }`}
-          >
-            {lastScanResult.message}
-          </p>
-          <button
-            onClick={() => setLastScanResult(null)}
-            className="text-gray-500 active:text-white"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
+        {/* KPI Cards */}
+        <KPICards
+          totalLines={lines.length}
+          totalItems={totalItems}
+          fulfillmentRate={fulfillmentRate}
+          orderType={activeSession.type}
+        />
 
-      {/* Manual quantity input */}
-      <div className="mx-4 mt-3 flex items-center gap-3">
-        <div className="flex-1 relative">
-          <label className="text-xs text-gray-400 mb-1 block">Aantal (optioneel)</label>
-          <input
-            ref={manualInputRef}
-            type="number"
-            min={1}
-            placeholder="1"
-            value={manualAantal}
-            onChange={(e) => {
-              setManualAantal(e.target.value);
-              manualAantalRef.current = e.target.value;
-            }}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold text-center focus:outline-none focus:border-white/30"
-          />
+        {/* Divider */}
+        <div style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-1)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-3)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <ScanLine size={13} />
+            {lines.length} regels · {totalItems} stuks
+          </div>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-1)' }} />
         </div>
-        <div className="shrink-0">
-          <label className="text-xs text-gray-400 mb-1 block">&nbsp;</label>
-          <button
-            onClick={handleExport}
-            className={`${accentBgBtn} flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform`}
-          >
-            <Download size={16} />
-            Export
-          </button>
-        </div>
-      </div>
 
-      {/* Order lines */}
-      <div className="flex-1 px-4 pt-4 pb-8 overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">
-            Orderregels
-          </p>
-          <span className={`text-xs font-bold ${accentText}`}>
-            {totalLines} × · {totalItems} stuks
-          </span>
-        </div>
-        <OrderList
+        {/* Order table */}
+        <OrderTable
           lines={lines}
+          orderType={activeSession.type}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
           onChangeAantal={handleChangeAantal}
           onDelete={handleDelete}
-          accentColor={accentBgBtn}
+          flashId={flashId}
         />
       </div>
     </div>

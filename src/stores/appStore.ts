@@ -2,54 +2,44 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Customer, Session } from '../db/database';
 
-type Page =
-  | 'home'
-  | 'klant-kiezen'
-  | 'scan-sessie'
-  | 'database-beheer'
-  | 'export-instellingen'
-  | 'inkoop-scan';
+type Page = 'home' | 'klant-kiezen' | 'scan-sessie' | 'database-beheer' | 'export-instellingen';
+
+interface ScanResult {
+  success: boolean;
+  message: string;
+  barcode?: string;
+}
 
 interface AppState {
   currentPage: Page;
-  theme: 'dark' | 'light';
   pendingOrderType: 'verkoop' | 'inkoop' | null;
   activeSession: Session | null;
   scanActive: boolean;
-  manualAantal: number | null;
-  lastScanResult: { success: boolean; message: string; barcode?: string } | null;
-
-  setPage: (page: Page) => void;
-  setTheme: (theme: 'dark' | 'light') => void;
-  setPendingOrderType: (type: 'verkoop' | 'inkoop') => void;
+  lastScanResult: ScanResult | null;
+  setPendingOrderType: (t: 'verkoop' | 'inkoop') => void;
+  setPage: (p: Page) => void;
   startSession: (type: 'verkoop' | 'inkoop', klant: Customer) => Session;
-  resumeSession: (session: Session) => void;
   endSession: () => void;
-  setScanActive: (active: boolean) => void;
-  setManualAantal: (n: number | null) => void;
-  setLastScanResult: (r: AppState['lastScanResult']) => void;
+  setScanActive: (v: boolean) => void;
+  setLastScanResult: (r: ScanResult | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentPage: 'home',
-      theme: 'dark',
       pendingOrderType: null,
       activeSession: null,
       scanActive: false,
-      manualAantal: null,
       lastScanResult: null,
 
-      setPage: (page) => set({ currentPage: page }),
-      setTheme: (theme) => set({ theme }),
-      setPendingOrderType: (type) => set({ pendingOrderType: type }),
+      setPage: (p) => set({ currentPage: p }),
+      setPendingOrderType: (t) => set({ pendingOrderType: t }),
 
       startSession: (type, klant) => {
         const session: Session = {
           id: crypto.randomUUID(),
-          type,
-          klant,
+          type, klant,
           status: 'active',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -58,31 +48,23 @@ export const useAppStore = create<AppState>()(
         return session;
       },
 
-      resumeSession: (session) => {
-        set({ activeSession: session, currentPage: 'scan-sessie' });
-      },
+      endSession: () => set({ activeSession: null, currentPage: 'home', scanActive: false }),
+      setScanActive: (v) => set({ scanActive: v }),
 
-      endSession: () => {
-        set({ activeSession: null, currentPage: 'home', scanActive: false });
-      },
-
-      setScanActive: (active) => set({ scanActive: active }),
-      setManualAantal: (n) => set({ manualAantal: n }),
       setLastScanResult: (r) => {
         set({ lastScanResult: r });
         if (r) {
           setTimeout(() => {
             if (get().lastScanResult === r) set({ lastScanResult: null });
-          }, 2500);
+          }, 2800);
         }
       },
     }),
     {
-      name: 'scanlabb-app-state',
-      partialize: (state) => ({
-        activeSession: state.activeSession,
-        theme: state.theme,
-        currentPage: state.currentPage === 'scan-sessie' ? 'scan-sessie' : 'home',
+      name: 'scanlabb-state',
+      partialize: (s) => ({
+        activeSession: s.activeSession,
+        currentPage: s.currentPage === 'scan-sessie' ? 'scan-sessie' : 'home',
       }),
     }
   )

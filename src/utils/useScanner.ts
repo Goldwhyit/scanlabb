@@ -10,16 +10,14 @@ interface UseScannerOptions {
 export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOptions) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const lastScanRef = useRef<{ code: string; ts: number }>({ code: '', ts: 0 });
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const lastRef = useRef<{ code: string; ts: number }>({ code: '', ts: 0 });
   const [isActive, setIsActive] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState<string | undefined>(undefined);
+  const [selectedCamera, setSelectedCamera] = useState<string | undefined>();
 
   const getReader = () => {
-    if (!readerRef.current) {
-      readerRef.current = new BrowserMultiFormatReader();
-    }
+    if (!readerRef.current) readerRef.current = new BrowserMultiFormatReader();
     return readerRef.current;
   };
 
@@ -28,115 +26,48 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
     setIsActive(false);
   }, []);
 
-  const refreshCameras = useCallback(async (): Promise<MediaDeviceInfo[]> => {
-    let devices: MediaDeviceInfo[] = [];
-
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
-      const all = await navigator.mediaDevices.enumerateDevices();
-      devices = all.filter((d) => d.kind === 'videoinput');
-    }
-
-    if (devices.length === 0) {
-      const readerDevices = await getReader().listVideoInputDevices();
-      devices = readerDevices;
-    }
-
-    setCameras(devices);
-
-    if (!selectedCamera || !devices.some((d) => d.deviceId === selectedCamera)) {
-      const preferred =
-        devices.find((d) => /back|rear|environment/i.test(d.label))?.deviceId ??
-        devices[devices.length - 1]?.deviceId;
-      setSelectedCamera(preferred);
-    }
-
-    return devices;
-  }, [selectedCamera]);
-
   const startReader = useCallback(async (deviceId?: string) => {
     if (!videoRef.current) return;
     try {
       const reader = getReader();
-
-      const devices = await refreshCameras();
-
-      // Prefer back/environment camera
-      const preferred =
-        deviceId ??
-        devices.find((d) => /back|rear|environment/i.test(d.label))?.deviceId ??
-        devices[devices.length - 1]?.deviceId ??
-        undefined;
-
+      const devices = await reader.listVideoInputDevices();
+      setCameras(devices);
+      const preferred = deviceId
+        ?? devices.find((d) => /back|rear|environment/i.test(d.label))?.deviceId
+        ?? devices[devices.length - 1]?.deviceId;
       setSelectedCamera(preferred);
       setHasPermission(true);
       setIsActive(true);
-
-      await reader.decodeFromVideoDevice(
-        preferred ?? null,
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            const code = result.getText();
-            const now = Date.now();
-            if (
-              code === lastScanRef.current.code &&
-              now - lastScanRef.current.ts < debounceMs
-            ) return;
-            lastScanRef.current = { code, ts: now };
-            if (navigator.vibrate) navigator.vibrate(50);
-            onScan(code);
-          }
-          if (err && !(err instanceof NotFoundException)) {
-            // Non-fatal scanner errors — ignore
-          }
+      await reader.decodeFromVideoDevice(preferred ?? null, videoRef.current, (result, err) => {
+        if (result) {
+          const code = result.getText();
+          const now = Date.now();
+          if (code === lastRef.current.code && now - lastRef.current.ts < debounceMs) return;
+          lastRef.current = { code, ts: now };
+          if (navigator.vibrate) navigator.vibrate(60);
+          onScan(code);
         }
-      );
+        if (err && !(err instanceof NotFoundException)) { /* ignore frame errors */ }
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/permission|notallowed/i.test(msg)) setHasPermission(false);
       onError?.(msg);
       setIsActive(false);
     }
-  }, [onScan, onError, debounceMs, refreshCameras]);
+  }, [onScan, onError, debounceMs]);
 
   const toggleScan = useCallback(async () => {
-    if (isActive) {
-      stopReader();
-    } else {
-      await startReader(selectedCamera);
-    }
+    if (isActive) stopReader(); else await startReader(selectedCamera);
   }, [isActive, startReader, stopReader, selectedCamera]);
 
-  const switchCamera = useCallback(async (deviceId: string) => {
+  const switchCamera = useCallback(async (id: string) => {
     stopReader();
-    setSelectedCamera(deviceId);
-    setTimeout(() => startReader(deviceId), 300);
+    setSelectedCamera(id);
+    setTimeout(() => startReader(id), 300);
   }, [startReader, stopReader]);
 
-  useEffect(() => {
-    refreshCameras().catch(() => undefined);
+  useEffect(() => () => { readerRef.current?.reset(); }, []);
 
-    const handleDeviceChange = () => {
-      refreshCameras().catch(() => undefined);
-    };
-
-    navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange);
-
-    return () => {
-      readerRef.current?.reset();
-      navigator.mediaDevices?.removeEventListener?.('devicechange', handleDeviceChange);
-    };
-  }, [refreshCameras]);
-
-  return {
-    videoRef,
-    isActive,
-    hasPermission,
-    cameras,
-    selectedCamera,
-    startReader,
-    stopReader,
-    toggleScan,
-    switchCamera,
-  };
+  return { videoRef, isActive, hasPermission, cameras, selectedCamera, startReader, stopReader, toggleScan, switchCamera };
 }

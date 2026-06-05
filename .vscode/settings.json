@@ -1,0 +1,17 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git add src/components/OrderList\\.tsx src/pages/ScanSessiePage\\.tsx src/utils/useScanner\\.ts; git commit -m \"Fix mobile camera picker visibility and enforce single-line order rows\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "git push": true,
+        "/^\\$p = \"c:\\\\Users\\\\DwightLoy\\\\Downloads\\\\Webpaginas\\\\2026\\\\Test-1-declaratieformulier\\.html\"; if \\(Test-Path -LiteralPath \\$p\\) \\{ \\(Get-Content -LiteralPath \\$p \\| Measure-Object -Line\\)\\.Lines \\} else \\{ \"MISSING\" \\}$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^\\$p = \"c:\\\\Users\\\\DwightLoy\\\\Downloads\\\\Webpaginas\\\\2026\\\\BluePrint_declaratieformulier_redesign\\.html\"; Select-String -Path \\$p -Pattern \"updateDetailsField\\|4203110\\|4204100\\|openBrandCarrierPickerModal\\|detailsTemplates\\|requiresCostCenter\\|from\\|naar\" -CaseSensitive:\\$false \\| Select-Object -First 120 \\| ForEach-Object \\{ \"\\{0\\}:\\{1\\}\" -f \\$_\\.LineNumber, \\$_\\.Line\\.Trim\\(\\) \\}$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
