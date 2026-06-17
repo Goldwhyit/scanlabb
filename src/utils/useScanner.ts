@@ -1,13 +1,30 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
+import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 interface UseScannerOptions {
   onScan: (barcode: string) => void;
   onError?: (err: string) => void;
   debounceMs?: number;
+  formats?: string[];
 }
 
-export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOptions) {
+function mapFormatsToBarcodeEnums(formats?: string[]) {
+  if (!formats || formats.length === 0) return undefined;
+  const map: BarcodeFormat[] = [];
+  for (const f of formats) {
+    switch (f) {
+      case 'EAN_13': map.push(BarcodeFormat.EAN_13); break;
+      case 'GS1_128':
+      case 'CODE_128': map.push(BarcodeFormat.CODE_128); break;
+      case 'UPC_A': map.push(BarcodeFormat.UPC_A); break;
+      case 'QR_CODE': map.push(BarcodeFormat.QR_CODE); break;
+      default: break;
+    }
+  }
+  return map.length > 0 ? map : undefined;
+}
+
+export function useScanner({ onScan, onError, debounceMs = 1200, formats }: UseScannerOptions) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const lastRef = useRef<{ code: string; ts: number }>({ code: '', ts: 0 });
@@ -17,7 +34,11 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
   const [selectedCamera, setSelectedCamera] = useState<string | undefined>();
 
   const getReader = () => {
-    if (!readerRef.current) readerRef.current = new BrowserMultiFormatReader();
+    if (readerRef.current) return readerRef.current;
+    const possible = mapFormatsToBarcodeEnums(formats);
+    const hints = new Map();
+    if (possible) hints.set(DecodeHintType.POSSIBLE_FORMATS, possible);
+    readerRef.current = new BrowserMultiFormatReader(hints);
     return readerRef.current;
   };
 
@@ -29,6 +50,11 @@ export function useScanner({ onScan, onError, debounceMs = 1200 }: UseScannerOpt
   const startReader = useCallback(async (deviceId?: string) => {
     if (!videoRef.current) return;
     try {
+      // recreate reader to respect formats in options
+      if (readerRef.current) {
+        readerRef.current.reset();
+        readerRef.current = null;
+      }
       const reader = getReader();
       const devices = await reader.listVideoInputDevices();
       setCameras(devices);

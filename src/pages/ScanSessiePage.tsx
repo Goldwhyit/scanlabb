@@ -24,6 +24,8 @@ export default function ScanSessiePage() {
   const isVerkoop = activeSession?.type === 'verkoop';
   const accent = isVerkoop ? 'var(--accent)' : 'var(--inkoop)';
   const glow = isVerkoop ? 'var(--accent-glow)' : 'var(--inkoop-glow)';
+  const [useEAN13, setUseEAN13] = useState(true);
+  const [useGS1, setUseGS1] = useState(true);
 
   const loadLines = useCallback(async () => {
     if (!activeSession) return;
@@ -90,9 +92,14 @@ export default function ScanSessiePage() {
     await loadLines();
   }, [activeSession, manualAantal, setLastScanResult, loadLines]);
 
+  const selectedFormats = [] as string[];
+  if (useEAN13) selectedFormats.push('EAN_13');
+  if (useGS1) selectedFormats.push('GS1_128');
+
   const { videoRef, isActive, hasPermission, cameras, selectedCamera, toggleScan, switchCamera } = useScanner({
     onScan: handleScan,
     onError: (e) => setLastScanResult({ success: false, message: e }),
+    formats: selectedFormats,
   });
 
   const handleIncrement = async (id: number) => {
@@ -220,8 +227,8 @@ export default function ScanSessiePage() {
 
       <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
         {/* Scanner */}
-        {/* Scanner profile selector */}
-        <div style={{ padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
+        {/* Scanner profile selector and symbology toggles */}
+        <div style={{ padding: '0 20px', display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ width: 260 }}>
             <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>Scanner profiel</label>
             <select
@@ -235,6 +242,16 @@ export default function ScanSessiePage() {
               <option value="SE4750-LED-LASER">SE4750 LED / Laser</option>
               <option value="PRZM">Zebra PRZM imager (1D/2D)</option>
             </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>Symbologie</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              <input type="checkbox" checked={useEAN13} onChange={(e) => setUseEAN13(e.target.checked)} /> EAN-13
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              <input type="checkbox" checked={useGS1} onChange={(e) => setUseGS1(e.target.checked)} /> GS1-128
+            </label>
           </div>
         </div>
         <ScannerViewport
