@@ -11,7 +11,7 @@ import { useScanner } from '../utils/useScanner';
 import { exportToExcel, DEFAULT_VERKOOP_COLUMNS, DEFAULT_INKOOP_COLUMNS } from '../utils/exportUtils';
 
 export default function ScanSessiePage() {
-  const { activeSession, endSession, setLastScanResult, lastScanResult } = useAppStore();
+  const { activeSession, endSession, setLastScanResult, lastScanResult, scannerProfile, setScannerProfile } = useAppStore();
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [manualAantal, setManualAantal] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
@@ -220,6 +220,23 @@ export default function ScanSessiePage() {
 
       <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
         {/* Scanner */}
+        {/* Scanner profile selector */}
+        <div style={{ padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ width: 260 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>Scanner profiel</label>
+            <select
+              value={scannerProfile ?? ''}
+              onChange={(e) => setScannerProfile(e.target.value || null)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--glass-bg)', color: 'var(--text-1)' }}
+            >
+              <option value="">Browser camera (default)</option>
+              <option value="SE4750SR">SE4750SR — short range (LED/imager)</option>
+              <option value="SE4750MR">SE4750MR — mid range (laser/imager)</option>
+              <option value="SE4750-LED-LASER">SE4750 LED / Laser</option>
+              <option value="PRZM">Zebra PRZM imager (1D/2D)</option>
+            </select>
+          </div>
+        </div>
         <ScannerViewport
           videoRef={videoRef as React.RefObject<HTMLVideoElement>}
           isActive={isActive}

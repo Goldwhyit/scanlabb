@@ -16,6 +16,8 @@ interface AppState {
   activeSession: Session | null;
   scanActive: boolean;
   lastScanResult: ScanResult | null;
+  scannerProfile: string | null;
+  setScannerProfile: (p: string | null) => void;
   setPendingOrderType: (t: 'verkoop' | 'inkoop') => void;
   setPage: (p: Page) => void;
   startSession: (type: 'verkoop' | 'inkoop', klant: Customer) => Session;
@@ -32,6 +34,7 @@ export const useAppStore = create<AppState>()(
       activeSession: null,
       scanActive: false,
       lastScanResult: null,
+      scannerProfile: null,
 
       setPage: (p) => set({ currentPage: p }),
       setPendingOrderType: (t) => set({ pendingOrderType: t }),
@@ -59,12 +62,14 @@ export const useAppStore = create<AppState>()(
           }, 2800);
         }
       },
+      setScannerProfile: (p) => set({ scannerProfile: p }),
     }),
     {
       name: 'scanlabb-state',
       partialize: (s) => ({
         activeSession: s.activeSession,
         currentPage: s.currentPage === 'scan-sessie' ? 'scan-sessie' : 'home',
+        scannerProfile: s.scannerProfile,
       }),
     }
   )
