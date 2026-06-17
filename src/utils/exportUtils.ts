@@ -35,13 +35,13 @@ function getVal(line: OrderLine, field: string, orderType: string, klant?: strin
   }
 }
 
-export function exportToExcel(
+export async function exportToExcel(
   lines: OrderLine[],
   config: ExportConfig,
   filename: string,
   orderType: 'verkoop' | 'inkoop',
   klant?: string
-) {
+): Promise<File> {
   const cols = config.columns.filter((c) => c.enabled);
   const rows: unknown[][] = [];
   for (let i = 1; i < config.dataStartRow; i++) rows.push(cols.map(() => ''));
@@ -52,5 +52,10 @@ export function exportToExcel(
   ws['!cols'] = cols.map((c) => ({ wch: Math.max(c.label.length + 2, 12) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, orderType === 'verkoop' ? 'Verkooporder' : 'Inkooporder');
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+
+  // Return file object, caller can download/share as needed
+  const arrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+  const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const file = new File([blob], `${filename}.xlsx`, { type: blob.type });
+  return file;
 }

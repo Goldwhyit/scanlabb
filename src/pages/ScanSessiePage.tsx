@@ -14,6 +14,9 @@ export default function ScanSessiePage() {
   const { activeSession, endSession, setLastScanResult, lastScanResult } = useAppStore();
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [manualAantal, setManualAantal] = useState('');
+  const [manualBarcode, setManualBarcode] = useState('');
+  const [exportedFile, setExportedFile] = useState<File | null>(null);
+  const [showPostExport, setShowPostExport] = useState(false);
   const [exportConfig, setExportConfig] = useState<ExportConfig | null>(null);
   const [flashId, setFlashId] = useState<number | null>(null);
   const manualRef = useRef<HTMLInputElement>(null);
@@ -111,7 +114,63 @@ export default function ScanSessiePage() {
     if (!exportConfig || !activeSession) return;
     const ts = new Date().toISOString().slice(0, 10);
     const klant = activeSession.klant?.klantnaam ?? 'onbekend';
-    exportToExcel(lines, exportConfig, `${activeSession.type}-${klant}-${ts}`, activeSession.type, klant);
+    (async () => {
+      const file = await exportToExcel(lines, exportConfig, `${activeSession.type}-${klant}-${ts}`, activeSession.type, klant);
+      setExportedFile(file);
+      setShowPostExport(true);
+    })();
+  };
+
+  const downloadExportedFile = () => {
+    if (!exportedFile) return;
+    const url = URL.createObjectURL(exportedFile);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportedFile.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearSheet = async () => {
+    if (!activeSession) return;
+    if (!confirm('Weet je zeker dat je alle regels in deze sessie wilt verwijderen?')) return;
+    await db.orderLines.where('sessionId').equals(activeSession.id).delete();
+    await loadLines();
+    setShowPostExport(false);
+    setExportedFile(null);
+  };
+
+  const handleManualBarcode = async () => {
+    if (!manualBarcode || !activeSession) return;
+    const article = await db.articles.where('barcode').equals(manualBarcode).first();
+    if (!article) {
+      setLastScanResult({ success: false, message: `Barcode niet gevonden: ${manualBarcode}`, barcode: manualBarcode });
+      return;
+    }
+    const qty = parseInt(manualAantal, 10);
+    const safeQty = (!isNaN(qty) && qty >= 1) ? qty : 1;
+    const existing = await db.orderLines.where('sessionId').equals(activeSession.id).filter((l) => l.barcode === manualBarcode).first();
+    if (existing?.id) {
+      await db.orderLines.update(existing.id, { aantal: existing.aantal + safeQty, timestamp: Date.now() });
+    } else {
+      await db.orderLines.add({
+        sessionId: activeSession.id,
+        barcode: manualBarcode,
+        artikelnummer: article.artikelnummer,
+        kleurnummer: article.kleurnummer,
+        maat: article.maat,
+        artikel: article.artikel,
+        kleur: article.kleur,
+        prijs: article.prijs,
+        aantal: safeQty,
+        timestamp: Date.now(),
+      });
+    }
+    setManualBarcode('');
+    setManualAantal('');
+    await loadLines();
   };
 
   const handleEnd = () => { if (isActive) toggleScan(); endSession(); };
@@ -269,6 +328,34 @@ export default function ScanSessiePage() {
             </button>
           </div>
         </div>
+
+        {/* Manual barcode input */}
+        <div style={{ padding: '0 20px', display: 'flex', gap: 10, marginTop: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>Handmatige barcode</label>
+            <input
+              type="text"
+              placeholder="Barcode invoeren"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--glass-bg)', color: 'var(--text-1)' }}
+            />
+          </div>
+          <div style={{ width: 120 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>&nbsp;</label>
+            <button onClick={handleManualBarcode} style={{ width: '100%', height: 40, borderRadius: 10, background: 'var(--accent)', color: '#000', fontWeight: 700 }}>Voer in</button>
+          </div>
+        </div>
+
+        {/* Post-export actions */}
+        {showPostExport && exportedFile && (
+          <div style={{ padding: '0 20px', marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={downloadExportedFile} style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--accent)', color: '#000', fontWeight: 700 }}>Download bestand</button>
+              <button onClick={clearSheet} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', color: '#F87171', border: '1px solid rgba(239,68,68,0.2)', fontWeight: 700 }}>Sheet leegmaken</button>
+            </div>
+          </div>
+        )}
 
         {/* KPI Cards */}
         <KPICards
