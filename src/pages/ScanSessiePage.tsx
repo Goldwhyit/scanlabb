@@ -51,8 +51,31 @@ export default function ScanSessiePage() {
   }, [activeSession]);
 
   const handleScan = useCallback(async (barcode: string) => {
+    const normalizeBarcode = (code: string) => {
+      if (!code) return code;
+      // GS1-128 often contains FNC1 represented as ASCII 29 (\u001D)
+      // or uses parentheses notation like (01)GTIN...
+      // Try to extract AI (01) GTIN (14) or fallback to raw code.
+      const FNC1 = '\u001D';
+      // (01)123... pattern
+      const mParen = code.match(/\(01\)(\d{14})/);
+      if (mParen) return mParen[1].slice(-13);
+      // AI without parens: look for 01+14 digits possibly preceded by FNC1
+      const m01 = code.match(new RegExp(`(?:${FNC1}|^)01(\\d{14})`));
+      if (m01 && m01[1]) return m01[1].slice(-13);
+      // If contains group separator, strip it and return first segment's numeric part
+      if (code.includes(FNC1)) {
+        const parts = code.split(FNC1).filter(Boolean);
+        for (const p of parts) {
+          const m = p.match(/^(?:01)?(\d{13,14})/);
+          if (m) return m[1].slice(-13);
+        }
+      }
+      return code;
+    };
     if (!activeSession) return;
-    const article = await db.articles.where('barcode').equals(barcode).first();
+    const norm = normalizeBarcode(barcode);
+    const article = await db.articles.where('barcode').equals(norm).first();
 
     if (!article) {
       setLastScanResult({ success: false, message: `Barcode niet gevonden: ${barcode}`, barcode });
@@ -64,7 +87,7 @@ export default function ScanSessiePage() {
 
     const existing = await db.orderLines
       .where('sessionId').equals(activeSession.id)
-      .filter((l) => l.barcode === barcode).first();
+      .filter((l) => l.barcode === norm).first();
 
     let updatedId: number;
     if (existing?.id) {
@@ -73,7 +96,7 @@ export default function ScanSessiePage() {
     } else {
       updatedId = await db.orderLines.add({
         sessionId: activeSession.id,
-        barcode,
+        barcode: norm,
         artikelnummer: article.artikelnummer,
         kleurnummer: article.kleurnummer,
         maat: article.maat,
@@ -151,20 +174,39 @@ export default function ScanSessiePage() {
 
   const handleManualBarcode = async () => {
     if (!manualBarcode || !activeSession) return;
-    const article = await db.articles.where('barcode').equals(manualBarcode).first();
+    // reuse normalize logic
+    const normalizeBarcode = (code: string) => {
+      if (!code) return code;
+      const FNC1 = '\u001D';
+      const mParen = code.match(/\(01\)(\d{14})/);
+      if (mParen) return mParen[1].slice(-13);
+      const m01 = code.match(new RegExp(`(?:${FNC1}|^)01(\\d{14})`));
+      if (m01 && m01[1]) return m01[1].slice(-13);
+      if (code.includes(FNC1)) {
+        const parts = code.split(FNC1).filter(Boolean);
+        for (const p of parts) {
+          const m = p.match(/^(?:01)?(\d{13,14})/);
+          if (m) return m[1].slice(-13);
+        }
+      }
+      return code;
+    };
+
+    const norm = normalizeBarcode(manualBarcode);
+    const article = await db.articles.where('barcode').equals(norm).first();
     if (!article) {
       setLastScanResult({ success: false, message: `Barcode niet gevonden: ${manualBarcode}`, barcode: manualBarcode });
       return;
     }
     const qty = parseInt(manualAantal, 10);
     const safeQty = (!isNaN(qty) && qty >= 1) ? qty : 1;
-    const existing = await db.orderLines.where('sessionId').equals(activeSession.id).filter((l) => l.barcode === manualBarcode).first();
+    const existing = await db.orderLines.where('sessionId').equals(activeSession.id).filter((l) => l.barcode === norm).first();
     if (existing?.id) {
       await db.orderLines.update(existing.id, { aantal: existing.aantal + safeQty, timestamp: Date.now() });
     } else {
       await db.orderLines.add({
         sessionId: activeSession.id,
-        barcode: manualBarcode,
+        barcode: norm,
         artikelnummer: article.artikelnummer,
         kleurnummer: article.kleurnummer,
         maat: article.maat,
@@ -252,6 +294,7 @@ export default function ScanSessiePage() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
               <input type="checkbox" checked={useGS1} onChange={(e) => setUseGS1(e.target.checked)} /> GS1-128
             </label>
+            <span title="GS1-128 is Code 128 met FNC1 and Application Identifiers (bijv. (01)GTIN). Als een GS1-code GTIN bevat, wordt deze automatisch geëxtraheerd vóór lookup." style={{ fontSize: 13, color: 'var(--text-3)', marginLeft: 6, cursor: 'help' }}>ℹ</span>
           </div>
         </div>
         <ScannerViewport
