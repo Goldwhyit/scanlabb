@@ -423,20 +423,6 @@ export default function ScanSessiePage() {
               </div>
             </div>
 
-            <ScannerViewport
-              videoRef={videoRef as React.RefObject<HTMLVideoElement>}
-              isActive={isActive}
-              hasPermission={hasPermission}
-              cameras={cameras}
-              selectedCamera={selectedCamera}
-              onToggle={toggleScan}
-              onSwitchCamera={switchCamera}
-              orderType={activeSession.type}
-              torchSupported={torchSupported}
-              torchOn={torchOn}
-              onToggleTorch={toggleTorch}
-            />
-
             {/* Manual quantity */}
             <div style={{ padding: '0 20px' }}>
               <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 5, fontWeight: 500 }}>
@@ -493,6 +479,20 @@ export default function ScanSessiePage() {
                 <button onClick={handleManualBarcode} className="btn-glass" style={{ width: '100%', minHeight: 44, borderRadius: 10, background: 'var(--accent)', color: '#000', fontWeight: 700 }}>Voer in</button>
               </div>
             </div>
+
+            <ScannerViewport
+              videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+              isActive={isActive}
+              hasPermission={hasPermission}
+              cameras={cameras}
+              selectedCamera={selectedCamera}
+              onToggle={toggleScan}
+              onSwitchCamera={switchCamera}
+              orderType={activeSession.type}
+              torchSupported={torchSupported}
+              torchOn={torchOn}
+              onToggleTorch={toggleTorch}
+            />
           </>
         ) : (
           <>

@@ -76,6 +76,37 @@ export default function ScannerViewport({
 
   return (
     <div style={{ padding: '0 20px' }}>
+      {/* Toggle button */}
+      <button
+        onClick={onToggle}
+        className="btn-glass"
+        style={{
+          width: '100%',
+          minHeight: 44,
+          marginBottom: 10,
+          padding: '13px 0',
+          borderRadius: 14,
+          background: isActive
+            ? 'rgba(15,23,42,0.8)'
+            : btnBg,
+          color: isActive ? 'var(--text-2)' : btnColor,
+          fontFamily: 'Outfit, sans-serif',
+          fontWeight: 700,
+          fontSize: 15,
+          letterSpacing: '-0.01em',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          border: isActive ? '1px solid var(--border-2)' : 'none',
+          boxShadow: isActive ? 'none' : `0 0 24px ${glow}, 0 4px 16px rgba(0,0,0,0.3)`,
+          transition: 'all 0.3s var(--ease)',
+        } as React.CSSProperties}
+      >
+        {isActive
+          ? <><Pause size={17} /> Pauzeer scanner</>
+          : <><Play size={17} /> Start scanner</>
+        }
+      </button>
+
       <div style={{
         position: 'relative',
         borderRadius: 20,
@@ -227,37 +258,6 @@ export default function ScannerViewport({
           )}
         </div>
       </div>
-
-      {/* Toggle button */}
-      <button
-        onClick={onToggle}
-        className="btn-glass"
-        style={{
-          width: '100%',
-          minHeight: 44,
-          marginTop: 10,
-          padding: '13px 0',
-          borderRadius: 14,
-          background: isActive
-            ? 'rgba(15,23,42,0.8)'
-            : btnBg,
-          color: isActive ? 'var(--text-2)' : btnColor,
-          fontFamily: 'Outfit, sans-serif',
-          fontWeight: 700,
-          fontSize: 15,
-          letterSpacing: '-0.01em',
-          cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          border: isActive ? '1px solid var(--border-2)' : 'none',
-          boxShadow: isActive ? 'none' : `0 0 24px ${glow}, 0 4px 16px rgba(0,0,0,0.3)`,
-          transition: 'all 0.3s var(--ease)',
-        } as React.CSSProperties}
-      >
-        {isActive
-          ? <><Pause size={17} /> Pauzeer scanner</>
-          : <><Play size={17} /> Start scanner</>
-        }
-      </button>
     </div>
   );
 }
