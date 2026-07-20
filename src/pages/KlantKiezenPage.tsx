@@ -97,9 +97,8 @@ export default function KlantKiezenPage() {
               onClick={() => select(klant)}
               style={{
                 width: '100%',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'var(--glass-blur)',
-                border: '1px solid var(--border-1)',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--card-border)',
                 borderRadius: 14,
                 padding: '14px 16px',
                 display: 'flex', alignItems: 'center', gap: 14,

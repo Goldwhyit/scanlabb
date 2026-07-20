@@ -71,7 +71,7 @@ export default function DatabaseBeheerPage() {
         {counts && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {[{ label: 'Artikelen', val: counts.articles }, { label: 'Klanten', val: counts.customers }].map((s, i) => (
-              <div key={i} style={{ background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--border-1)', borderRadius: 16, padding: '16px', animation: 'fadeUp 0.4s var(--ease-spring) both', animationDelay: `${i * 60}ms` }}>
+              <div key={i} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: '16px', animation: 'fadeUp 0.4s var(--ease-spring) both', animationDelay: `${i * 60}ms` }}>
                 <p style={{ margin: '0 0 4px', fontFamily: 'DM Mono, monospace', fontSize: 28, fontWeight: 500, color: 'var(--accent)', letterSpacing: '-0.02em' }}>{s.val.toLocaleString('nl')}</p>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>{s.label}</p>
               </div>
@@ -122,10 +122,11 @@ export default function DatabaseBeheerPage() {
             {tab === 'artikelen' && ' · Vereist: Barcode, Artikelnummer, Kleurnummer, Maat'}
             {tab === 'klanten' && ' · Vereist: Klantnummer, Klantnaam'}
           </p>
-          <div style={{
+          <div className="btn-glass" style={{
             display: 'inline-block', padding: '10px 24px',
             background: 'var(--accent)', borderRadius: 12,
             color: '#030712', fontWeight: 700, fontSize: 14,
+            boxShadow: '0 0 20px var(--accent-glow)',
           }}>
             Kies bestand
           </div>

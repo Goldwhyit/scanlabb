@@ -18,6 +18,9 @@ export interface Customer {
   klantnaam: string;
 }
 
+export type ScanMode = 'single' | 'multi' | 'grouped';
+export type OrderLineStatus = 'goed' | 'beschadigd' | 'retour';
+
 export interface OrderLine {
   id?: number;
   sessionId: string;
@@ -30,6 +33,10 @@ export interface OrderLine {
   prijs?: number;
   aantal: number;
   timestamp: number;
+  groupId?: string;
+  groupLabel?: string;
+  status?: OrderLineStatus;
+  note?: string;
 }
 
 export interface Session {
@@ -39,6 +46,8 @@ export interface Session {
   status: 'active' | 'finished';
   createdAt: number;
   updatedAt: number;
+  scanMode?: ScanMode;
+  maxScans?: number;
 }
 
 export interface ExportColumn {
@@ -70,6 +79,13 @@ class ScanLabbDB extends Dexie {
       articles: '++id, barcode, artikelnummer',
       customers: '++id, klantnummer, klantnaam',
       orderLines: '++id, sessionId, barcode, timestamp',
+      sessions: 'id, type, status',
+      exportConfigs: '++id, name, orderType',
+    });
+    this.version(2).stores({
+      articles: '++id, barcode, artikelnummer',
+      customers: '++id, klantnummer, klantnaam',
+      orderLines: '++id, sessionId, barcode, timestamp, groupId',
       sessions: 'id, type, status',
       exportConfigs: '++id, name, orderType',
     });

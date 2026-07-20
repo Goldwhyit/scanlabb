@@ -1,4 +1,4 @@
-import { Camera, CameraOff, Pause, Play, FlipHorizontal } from 'lucide-react';
+import { Camera, CameraOff, Pause, Play, FlipHorizontal, Flashlight, FlashlightOff } from 'lucide-react';
 
 interface ScannerViewportProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -9,6 +9,9 @@ interface ScannerViewportProps {
   onToggle: () => void;
   onSwitchCamera: (id: string) => void;
   orderType: 'verkoop' | 'inkoop';
+  torchSupported?: boolean;
+  torchOn?: boolean;
+  onToggleTorch?: () => void;
 }
 
 export default function ScannerViewport({
@@ -20,6 +23,9 @@ export default function ScannerViewport({
   onToggle,
   onSwitchCamera,
   orderType,
+  torchSupported,
+  torchOn,
+  onToggleTorch,
 }: ScannerViewportProps) {
   const isVerkoop = orderType === 'verkoop';
   const accent = isVerkoop ? 'var(--accent)' : 'var(--inkoop)';
@@ -75,8 +81,8 @@ export default function ScannerViewport({
         borderRadius: 20,
         overflow: 'hidden',
         background: '#000',
-        aspectRatio: '16/9',
-        maxHeight: 220,
+        aspectRatio: '3/4',
+        maxHeight: 'min(60vh, 460px)',
         border: isActive ? `1px solid ${accent}40` : '1px solid var(--border-2)',
         boxShadow: isActive
           ? `var(--glass-shadow), 0 0 32px ${glow}`
@@ -104,12 +110,17 @@ export default function ScannerViewport({
             background: 'linear-gradient(135deg, #030712 0%, #0B132B 100%)',
           }}>
             {hasPermission === false
-              ? <CameraOff size={36} color="var(--text-3)" />
-              : <Camera size={36} color="var(--text-3)" />
+              ? <CameraOff size={36} color="var(--text-3)" aria-hidden="true" />
+              : <Camera size={36} color="var(--text-3)" aria-hidden="true" />
             }
-            <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13 }}>
+            <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '0 24px' }}>
               {hasPermission === false ? 'Camera toegang geweigerd' : 'Camera staat uit'}
             </p>
+            {hasPermission === false && (
+              <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 11, textAlign: 'center', padding: '0 24px', maxWidth: 260 }}>
+                Geef deze site camera-toegang via de site-instellingen van je browser (meestal het slotje/i-icoon naast de adresbalk) en herlaad de pagina.
+              </p>
+            )}
           </div>
         )}
 
@@ -174,24 +185,44 @@ export default function ScannerViewport({
           position: 'absolute', bottom: 12, right: 12,
           display: 'flex', gap: 8,
         }}>
+          {isActive && torchSupported && onToggleTorch && (
+            <button
+              onClick={onToggleTorch}
+              aria-label={torchOn ? 'Flash uitschakelen' : 'Flash inschakelen'}
+              aria-pressed={torchOn}
+              style={{
+                width: 44, height: 44,
+                background: torchOn ? accent : 'rgba(3,7,18,0.7)',
+                backdropFilter: 'blur(8px)',
+                border: `1px solid ${torchOn ? accent : 'var(--border-2)'}`,
+                borderRadius: 12,
+                color: torchOn ? '#030712' : 'var(--text-2)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {torchOn ? <Flashlight size={17} /> : <FlashlightOff size={17} />}
+            </button>
+          )}
           {cameras.length > 1 && (
             <button
               onClick={() => {
                 const other = cameras.find((c) => c.deviceId !== selectedCamera);
                 if (other) onSwitchCamera(other.deviceId);
               }}
+              aria-label="Wissel van camera"
               style={{
+                width: 44, height: 44,
                 background: 'rgba(3,7,18,0.7)',
                 backdropFilter: 'blur(8px)',
                 border: '1px solid var(--border-2)',
-                borderRadius: 10,
-                padding: '7px 9px',
+                borderRadius: 12,
                 color: 'var(--text-2)',
                 cursor: 'pointer',
-                display: 'flex', alignItems: 'center',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <FlipHorizontal size={15} />
+              <FlipHorizontal size={17} />
             </button>
           )}
         </div>
@@ -200,8 +231,10 @@ export default function ScannerViewport({
       {/* Toggle button */}
       <button
         onClick={onToggle}
+        className="btn-glass"
         style={{
           width: '100%',
+          minHeight: 44,
           marginTop: 10,
           padding: '13px 0',
           borderRadius: 14,

@@ -74,15 +74,13 @@ export default function KPICards({ totalLines, totalItems, fulfillmentRate, orde
         <div
           key={i}
           style={{
-            background: card.highlight ? `linear-gradient(135deg, ${glow}, transparent)` : 'var(--glass-bg)',
-            backdropFilter: 'var(--glass-blur)',
-            WebkitBackdropFilter: 'var(--glass-blur)',
-            border: card.highlight ? `1px solid ${accent}40` : '1px solid var(--border-2)',
+            background: card.highlight ? `linear-gradient(135deg, ${glow}, transparent), var(--card-bg)` : 'var(--card-bg)',
+            border: card.highlight ? `1px solid ${accent}40` : '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '14px 14px 12px',
             boxShadow: card.highlight
-              ? `var(--glass-shadow), 0 0 24px ${glow}`
-              : 'var(--glass-shadow)',
+              ? `0 1px 0 rgba(255,255,255,0.06) inset, 0 0 24px ${glow}`
+              : '0 1px 0 rgba(255,255,255,0.06) inset',
             animation: 'fadeUp 0.4s var(--ease-spring) both',
             animationDelay: `${i * 60}ms`,
           }}

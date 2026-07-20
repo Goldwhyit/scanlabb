@@ -198,7 +198,7 @@ export default function ExportInstellingenPage() {
       {/* Save button */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '16px 20px', background: 'var(--bg-primary)', borderTop: '1px solid var(--border-1)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <button onClick={save} style={{
+          <button onClick={save} className="btn-glass" style={{
             width: '100%', padding: '15px 0',
             background: saved ? 'rgba(34,197,94,0.15)' : accent,
             border: saved ? '1px solid rgba(34,197,94,0.35)' : 'none',

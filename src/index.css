@@ -15,14 +15,28 @@
   --border-1:        rgba(255,255,255,0.05);
   --border-2:        rgba(255,255,255,0.09);
   --border-accent:   rgba(0,245,212,0.28);
-  --glass-bg:        rgba(15,23,42,0.65);
-  --glass-blur:      blur(16px) saturate(180%);
+  /* Liquid Glass — real backdrop-filter blur, reserved for bounded chrome (nav, CTAs, sheets/modals) */
+  --glass-bg:        rgba(15,23,42,0.58);
+  --glass-blur:      blur(10px) saturate(180%);
   --glass-shadow:    0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25);
+  /* Liquid Glass — tinted sheen surface for repeated list/grid items (no blur, cheap to repeat) */
+  --card-bg:         linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 55%, rgba(255,255,255,0.03) 100%), rgba(15,23,42,0.55);
+  --card-border:     var(--border-1);
+  --page-bg:
+    radial-gradient(circle at 12% 8%,  rgba(0,245,212,0.10) 0%, transparent 40%),
+    radial-gradient(circle at 88% 14%, rgba(0,229,255,0.08) 0%, transparent 42%),
+    radial-gradient(circle at 22% 92%, rgba(168,85,247,0.09) 0%, transparent 45%),
+    linear-gradient(135deg, #030712 0%, #0B132B 100%);
   --ease:            cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring:     cubic-bezier(0.25, 1, 0.5, 1);
   --ease-expo:       cubic-bezier(0.19, 1, 0.22, 1);
   --inkoop:          #A855F7;
   --inkoop-glow:     rgba(168,85,247,0.18);
+}
+
+/* Blur only gets heavier once we're past mobile — keeps scanning smooth on handheld devices */
+@media (min-width: 769px) {
+  :root { --glass-blur: blur(18px) saturate(180%); }
 }
 
 [data-theme="light"] {
@@ -39,17 +53,38 @@
   --border-1:        rgba(15,23,42,0.05);
   --border-2:        rgba(15,23,42,0.09);
   --border-accent:   rgba(0,163,196,0.30);
-  --glass-bg:        rgba(255,255,255,0.78);
+  --glass-bg:        rgba(255,255,255,0.60);
   --glass-shadow:    0 1px 0 rgba(255,255,255,0.95) inset, 0 4px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(15,23,42,0.05);
+  --card-bg:         linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 55%, rgba(15,23,42,0.03) 100%), rgba(255,255,255,0.5);
+  --card-border:     var(--border-1);
+  --page-bg:
+    radial-gradient(circle at 12% 8%,  rgba(0,163,196,0.08) 0%, transparent 40%),
+    radial-gradient(circle at 88% 14%, rgba(2,132,199,0.06) 0%, transparent 42%),
+    radial-gradient(circle at 22% 92%, rgba(124,58,237,0.06) 0%, transparent 45%),
+    linear-gradient(135deg, #F8FAFC 0%, #EEF1F8 100%);
   --inkoop:          #7C3AED;
   --inkoop-glow:     rgba(124,58,237,0.12);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  background: var(--page-bg);
+  background-size: 220% 220%;
+  animation: bgDrift 34s ease-in-out infinite;
+}
+
+@keyframes bgDrift {
+  0%, 100% { background-position: 0% 0%; }
+  50%      { background-position: 100% 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { animation: none; }
+}
+
 html, body {
   margin: 0; padding: 0; height: 100%;
-  background: var(--bg-primary);
   color: var(--text-1);
   font-family: 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -71,6 +106,23 @@ input[type=number] { -moz-appearance: textfield; }
   border: 1px solid var(--border-2);
   box-shadow: var(--glass-shadow);
 }
+
+/* Liquid Glass sheen sweep — CTA buttons only (bounded, low instance count) */
+.btn-glass {
+  position: relative;
+  overflow: hidden;
+}
+.btn-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.35) 48%, transparent 66%);
+  transform: translateX(-130%);
+  transition: transform 0.7s var(--ease);
+  pointer-events: none;
+}
+.btn-glass:hover::after { transform: translateX(130%); }
+.btn-glass:active { transform: scale(0.97); }
 
 .mono { font-family: 'DM Mono', monospace; }
 

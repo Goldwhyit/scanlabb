@@ -3,6 +3,7 @@ import { ShoppingCart, PackageSearch, Wifi, WifiOff, ChevronRight } from 'lucide
 import { useAppStore } from '../stores/appStore';
 import { db } from '../db/database';
 import Header from '../components/Header';
+import { APP_VERSION, APP_RELEASE_DATE } from '../version';
 
 export default function HomePage() {
   const { setPage, setPendingOrderType, activeSession } = useAppStore();
@@ -26,25 +27,46 @@ export default function HomePage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
 
       <main style={{ flex: 1, maxWidth: 680, width: '100%', margin: '0 auto', padding: '24px 20px' }}>
         {/* Online status */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7,
-          background: 'var(--glass-bg)',
-          backdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border-1)',
-          borderRadius: 99, padding: '5px 12px',
-          fontSize: 11, fontWeight: 600,
-          color: isOnline ? 'var(--accent)' : '#F59E0B',
-          marginBottom: 28,
-          animation: 'fadeUp 0.4s var(--ease-spring)',
-        }}>
-          {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {isOnline ? 'Online' : 'Offline modus'}
-        </div>
+        {isOnline ? (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            background: 'var(--glass-bg)',
+            backdropFilter: 'var(--glass-blur)',
+            border: '1px solid var(--border-1)',
+            borderRadius: 99, padding: '5px 12px',
+            fontSize: 11, fontWeight: 600,
+            color: 'var(--accent)',
+            marginBottom: 28,
+            animation: 'fadeUp 0.4s var(--ease-spring)',
+          }}>
+            <Wifi size={12} /> Online
+          </div>
+        ) : (
+          <div
+            role="status"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 9,
+              background: 'var(--glass-bg)',
+              backdropFilter: 'var(--glass-blur)',
+              WebkitBackdropFilter: 'var(--glass-blur)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              borderRadius: 14, padding: '11px 14px',
+              fontSize: 12, fontWeight: 600,
+              color: '#F59E0B',
+              marginBottom: 28,
+              boxShadow: 'var(--glass-shadow)',
+              animation: 'fadeUp 0.4s var(--ease-spring)',
+            }}
+          >
+            <WifiOff size={15} style={{ flexShrink: 0 }} />
+            Offline modus — data blijft lokaal opgeslagen en is beschikbaar zodra je weer verbinding hebt.
+          </div>
+        )}
 
         {/* Active session banner */}
         {activeSession && (
@@ -66,6 +88,7 @@ export default function HomePage() {
             </p>
             <button
               onClick={() => setPage('scan-sessie')}
+              className="btn-glass"
               style={{
                 width: '100%', padding: '11px 0',
                 background: 'var(--accent)',
@@ -94,9 +117,8 @@ export default function HomePage() {
               key={i}
               onClick={() => setPage('database-beheer')}
               style={{
-                background: 'var(--glass-bg)',
-                backdropFilter: 'var(--glass-blur)',
-                border: s.warn ? '1px solid rgba(245,158,11,0.25)' : '1px solid var(--border-1)',
+                background: 'var(--card-bg)',
+                border: s.warn ? '1px solid rgba(245,158,11,0.25)' : '1px solid var(--card-border)',
                 borderRadius: 16, padding: '16px 18px',
                 cursor: 'pointer',
                 transition: 'all 0.2s var(--ease)',
@@ -184,7 +206,7 @@ export default function HomePage() {
       </main>
 
       <footer style={{ textAlign: 'center', padding: '20px', fontSize: 11, color: 'var(--text-3)' }}>
-        ScanLabb v2.0 — LoopLabb B.V. Amsterdam
+        ScanLabb v{APP_VERSION} · {APP_RELEASE_DATE} — LoopLabb B.V. Amsterdam
       </footer>
     </div>
   );
