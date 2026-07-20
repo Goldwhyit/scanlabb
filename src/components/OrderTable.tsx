@@ -187,23 +187,26 @@ export default function OrderTable({
                   animation: `rowIn 0.35s var(--ease-spring) ${delay}ms both`,
                 }}
               >
-                {/* Swipe-to-delete backing */}
-                <button
-                  onClick={() => {
-                    onDelete(line.id!);
-                    setRevealedDeleteId(null);
-                    setSwipeOffset(0);
-                    if (sheetLineId === line.id) closeSheet();
-                  }}
-                  aria-label={`Verwijder ${line.artikelnummer}`}
-                  style={{
-                    position: 'absolute', right: 0, top: 0, bottom: 0, width: MAX_SWIPE,
-                    background: '#EF4444', border: 'none', color: '#fff',
-                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  }}
-                >
-                  Verwijder
-                </button>
+                {/* Swipe-to-delete backing — only mounted while swiping/revealed, since the
+                    translucent glass row above it would otherwise let it bleed through */}
+                {(swipingLineId === line.id || revealedDeleteId === line.id) && (
+                  <button
+                    onClick={() => {
+                      onDelete(line.id!);
+                      setRevealedDeleteId(null);
+                      setSwipeOffset(0);
+                      if (sheetLineId === line.id) closeSheet();
+                    }}
+                    aria-label={`Verwijder ${line.artikelnummer}`}
+                    style={{
+                      position: 'absolute', right: 0, top: 0, bottom: 0, width: MAX_SWIPE,
+                      background: '#EF4444', border: 'none', color: '#fff',
+                      fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    Verwijder
+                  </button>
+                )}
 
                 {/* Row content */}
                 <div
